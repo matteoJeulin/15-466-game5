@@ -92,62 +92,29 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		{
 			// ignore repeats
 		}
-		else if (evt.key.key == SDLK_A)
-		{
-			controls.left.downs += 1;
-			controls.left.pressed = true;
-			return true;
-		}
-		else if (evt.key.key == SDLK_D)
-		{
-			controls.right.downs += 1;
-			controls.right.pressed = true;
-			return true;
-		}
-		else if (evt.key.key == SDLK_W)
+		else if (evt.key.key == SDLK_UP || evt.key.key == SDLK_W)
 		{
 			controls.up.downs += 1;
 			controls.up.pressed = true;
 			return true;
 		}
-		else if (evt.key.key == SDLK_S)
+		else if (evt.key.key == SDLK_DOWN || evt.key.key == SDLK_S)
 		{
 			controls.down.downs += 1;
 			controls.down.pressed = true;
 			return true;
 		}
-		else if (evt.key.key == SDLK_SPACE)
-		{
-			controls.jump.downs += 1;
-			controls.jump.pressed = true;
-			return true;
-		}
 	}
 	else if (evt.type == SDL_EVENT_KEY_UP)
 	{
-		if (evt.key.key == SDLK_A)
-		{
-			controls.left.pressed = false;
-			return true;
-		}
-		else if (evt.key.key == SDLK_D)
-		{
-			controls.right.pressed = false;
-			return true;
-		}
-		else if (evt.key.key == SDLK_W)
+		if (evt.key.key == SDLK_UP || evt.key.key == SDLK_W)
 		{
 			controls.up.pressed = false;
 			return true;
 		}
-		else if (evt.key.key == SDLK_S)
+		else if (evt.key.key == SDLK_DOWN || evt.key.key == SDLK_S)
 		{
 			controls.down.pressed = false;
-			return true;
-		}
-		else if (evt.key.key == SDLK_SPACE)
-		{
-			controls.jump.pressed = false;
 			return true;
 		}
 	}
@@ -162,11 +129,8 @@ void PlayMode::update(float elapsed)
 	controls.send_controls_message(&client.connection);
 
 	// reset button press counters:
-	controls.left.downs = 0;
-	controls.right.downs = 0;
 	controls.up.downs = 0;
 	controls.down.downs = 0;
-	controls.jump.downs = 0;
 
 	// send/receive data:
 	client.poll([this](Connection *c, Connection::Event event)
@@ -191,8 +155,8 @@ void PlayMode::update(float elapsed)
 			}
 		} }, 0.0);
 
-	paddleLeft->position = glm::vec3(game.players.front().position, paddleLeft->position.z);
-	paddleRight->position = glm::vec3(game.players.back().position, paddleRight->position.z);
+	paddleLeft->position = glm::vec3(-paddlePos, game.players.front().position, paddleLeft->position.z);
+	paddleRight->position = glm::vec3(paddlePos, game.players.back().position, paddleRight->position.z);
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size)

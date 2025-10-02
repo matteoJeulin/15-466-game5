@@ -39,6 +39,8 @@ struct PlayMode : Mode {
 	Scene::Transform *wallTop = nullptr;
 	Scene::Transform *wallBottom = nullptr;
 
+	float paddlePos = 140;
+
 	//last message from server:
 	std::string server_message;
 

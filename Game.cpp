@@ -13,7 +13,7 @@ void Player::Controls::send_controls_message(Connection *connection_) const {
 	assert(connection_);
 	auto &connection = *connection_;
 
-	uint32_t size = 5;
+	uint32_t size = 2;
 	connection.send(Message::C2S_Controls);
 	connection.send(uint8_t(size));
 	connection.send(uint8_t(size >> 8));
@@ -26,11 +26,8 @@ void Player::Controls::send_controls_message(Connection *connection_) const {
 		connection.send(uint8_t( (b.pressed ? 0x80 : 0x00) | (b.downs & 0x7f) ) );
 	};
 
-	send_button(left);
-	send_button(right);
 	send_button(up);
 	send_button(down);
-	send_button(jump);
 }
 
 bool Player::Controls::recv_controls_message(Connection *connection_) {
@@ -45,7 +42,7 @@ bool Player::Controls::recv_controls_message(Connection *connection_) {
 	uint32_t size = (uint32_t(recv_buffer[3]) << 16)
 	              | (uint32_t(recv_buffer[2]) << 8)
 	              |  uint32_t(recv_buffer[1]);
-	if (size != 5) throw std::runtime_error("Controls message with size " + std::to_string(size) + " != 5!");
+	if (size != 2) throw std::runtime_error("Controls message with size " + std::to_string(size) + " != 5!");
 	
 	//expecting complete message:
 	if (recv_buffer.size() < 4 + size) return false;
@@ -60,11 +57,8 @@ bool Player::Controls::recv_controls_message(Connection *connection_) {
 		button->downs = uint8_t(d);
 	};
 
-	recv_button(recv_buffer[4+0], &left);
-	recv_button(recv_buffer[4+1], &right);
-	recv_button(recv_buffer[4+2], &up);
-	recv_button(recv_buffer[4+3], &down);
-	recv_button(recv_buffer[4+4], &jump);
+	recv_button(recv_buffer[4+0], &up);
+	recv_button(recv_buffer[4+1], &down);
 
 	//delete message from buffer:
 	recv_buffer.erase(recv_buffer.begin(), recv_buffer.begin() + 4 + size);
@@ -81,10 +75,6 @@ Game::Game() : mt(0x15466666) {
 Player *Game::spawn_player() {
 	players.emplace_back();
 	Player &player = players.back();
-
-	//random point in the middle area of the arena:
-	player.position.x = glm::mix(ArenaMin.x + 2.0f * PlayerRadius, ArenaMax.x - 2.0f * PlayerRadius, 0.4f + 0.2f * mt() / float(mt.max()));
-	player.position.y = glm::mix(ArenaMin.y + 2.0f * PlayerRadius, ArenaMax.y - 2.0f * PlayerRadius, 0.4f + 0.2f * mt() / float(mt.max()));
 
 	do {
 		player.color.r = mt() / float(mt.max());
@@ -113,42 +103,30 @@ void Game::remove_player(Player *player) {
 void Game::update(float elapsed) {
 	//position/velocity update:
 	for (auto &p : players) {
-		glm::vec2 dir = glm::vec2(0.0f, 0.0f);
-		if (p.controls.left.pressed) dir.x -= 1.0f;
-		if (p.controls.right.pressed) dir.x += 1.0f;
-		if (p.controls.down.pressed) dir.y -= 1.0f;
-		if (p.controls.up.pressed) dir.y += 1.0f;
+		float dir = 0.0f;
+		if (p.controls.down.pressed) dir -= 1.0f;
+		if (p.controls.up.pressed) dir += 1.0f;
 
-		if (dir == glm::vec2(0.0f)) {
+		if (dir == 0.0f) {
 			//no inputs: just drift to a stop
 			float amt = 1.0f - std::pow(0.5f, elapsed / (PlayerAccelHalflife * 2.0f));
-			p.velocity = glm::mix(p.velocity, glm::vec2(0.0f,0.0f), amt);
+			p.velocity = glm::mix(p.velocity, 0.0f, amt);
 		} else {
-			//inputs: tween velocity to target direction
-			dir = glm::normalize(dir);
-
 			float amt = 1.0f - std::pow(0.5f, elapsed / PlayerAccelHalflife);
 
 			//accelerate along velocity (if not fast enough):
-			float along = glm::dot(p.velocity, dir);
+			float along = dir * p.velocity;
 			if (along < PlayerSpeed) {
 				along = glm::mix(along, PlayerSpeed, amt);
 			}
 
-			//damp perpendicular velocity:
-			float perp = glm::dot(p.velocity, glm::vec2(-dir.y, dir.x));
-			perp = glm::mix(perp, 0.0f, amt);
-
-			p.velocity = dir * along + glm::vec2(-dir.y, dir.x) * perp;
+			p.velocity = dir * along;
 		}
 		p.position += p.velocity * elapsed;
 
 		//reset 'downs' since controls have been handled:
-		p.controls.left.downs = 0;
-		p.controls.right.downs = 0;
 		p.controls.up.downs = 0;
 		p.controls.down.downs = 0;
-		p.controls.jump.downs = 0;
 	}
 
 	// //collision resolution:

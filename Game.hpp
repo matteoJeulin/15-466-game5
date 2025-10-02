@@ -28,7 +28,7 @@ struct Button {
 struct Player {
 	//player inputs (sent from client):
 	struct Controls {
-		Button left, right, up, down, jump;
+		Button up, down;
 
 		void send_controls_message(Connection *connection) const;
 
@@ -39,8 +39,8 @@ struct Player {
 	} controls;
 
 	//player state (sent from server):
-	glm::vec2 position = glm::vec2(0.0f, 0.0f);
-	glm::vec2 velocity = glm::vec2(0.0f, 0.0f);
+	float position = 0.0f;
+	float velocity = 0.0f;
 
 	glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
 	std::string name = "";
