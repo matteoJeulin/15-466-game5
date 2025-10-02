@@ -26,3 +26,5 @@ scenes/show-meshes*
 scenes/show-scene*
 scenes/SDL3.dll
 *.blend[0-9]
+
+nest-libs

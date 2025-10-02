@@ -151,40 +151,40 @@ void Game::update(float elapsed) {
 		p.controls.jump.downs = 0;
 	}
 
-	//collision resolution:
-	for (auto &p1 : players) {
-		//player/player collisions:
-		for (auto &p2 : players) {
-			if (&p1 == &p2) break;
-			glm::vec2 p12 = p2.position - p1.position;
-			float len2 = glm::length2(p12);
-			if (len2 > (2.0f * PlayerRadius) * (2.0f * PlayerRadius)) continue;
-			if (len2 == 0.0f) continue;
-			glm::vec2 dir = p12 / std::sqrt(len2);
-			//mirror velocity to be in separating direction:
-			glm::vec2 v12 = p2.velocity - p1.velocity;
-			glm::vec2 delta_v12 = dir * glm::max(0.0f, -1.75f * glm::dot(dir, v12));
-			p2.velocity += 0.5f * delta_v12;
-			p1.velocity -= 0.5f * delta_v12;
-		}
-		//player/arena collisions:
-		if (p1.position.x < ArenaMin.x + PlayerRadius) {
-			p1.position.x = ArenaMin.x + PlayerRadius;
-			p1.velocity.x = std::abs(p1.velocity.x);
-		}
-		if (p1.position.x > ArenaMax.x - PlayerRadius) {
-			p1.position.x = ArenaMax.x - PlayerRadius;
-			p1.velocity.x =-std::abs(p1.velocity.x);
-		}
-		if (p1.position.y < ArenaMin.y + PlayerRadius) {
-			p1.position.y = ArenaMin.y + PlayerRadius;
-			p1.velocity.y = std::abs(p1.velocity.y);
-		}
-		if (p1.position.y > ArenaMax.y - PlayerRadius) {
-			p1.position.y = ArenaMax.y - PlayerRadius;
-			p1.velocity.y =-std::abs(p1.velocity.y);
-		}
-	}
+	// //collision resolution:
+	// for (auto &p1 : players) {
+	// 	//player/player collisions:
+	// 	for (auto &p2 : players) {
+	// 		if (&p1 == &p2) break;
+	// 		glm::vec2 p12 = p2.position - p1.position;
+	// 		float len2 = glm::length2(p12);
+	// 		if (len2 > (2.0f * PlayerRadius) * (2.0f * PlayerRadius)) continue;
+	// 		if (len2 == 0.0f) continue;
+	// 		glm::vec2 dir = p12 / std::sqrt(len2);
+	// 		//mirror velocity to be in separating direction:
+	// 		glm::vec2 v12 = p2.velocity - p1.velocity;
+	// 		glm::vec2 delta_v12 = dir * glm::max(0.0f, -1.75f * glm::dot(dir, v12));
+	// 		p2.velocity += 0.5f * delta_v12;
+	// 		p1.velocity -= 0.5f * delta_v12;
+	// 	}
+	// 	//player/arena collisions:
+	// 	if (p1.position.x < ArenaMin.x + PlayerRadius) {
+	// 		p1.position.x = ArenaMin.x + PlayerRadius;
+	// 		p1.velocity.x = std::abs(p1.velocity.x);
+	// 	}
+	// 	if (p1.position.x > ArenaMax.x - PlayerRadius) {
+	// 		p1.position.x = ArenaMax.x - PlayerRadius;
+	// 		p1.velocity.x =-std::abs(p1.velocity.x);
+	// 	}
+	// 	if (p1.position.y < ArenaMin.y + PlayerRadius) {
+	// 		p1.position.y = ArenaMin.y + PlayerRadius;
+	// 		p1.velocity.y = std::abs(p1.velocity.y);
+	// 	}
+	// 	if (p1.position.y > ArenaMax.y - PlayerRadius) {
+	// 		p1.position.y = ArenaMax.y - PlayerRadius;
+	// 		p1.velocity.y =-std::abs(p1.velocity.y);
+	// 	}
+	// }
 
 }
 

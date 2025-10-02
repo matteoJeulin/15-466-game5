@@ -5,7 +5,7 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	BLENDER = /Applications/Blender.app/Contents/MacOS/Blender -y
 else ifeq ($(UNAME_S),Linux)
-	BLENDER = ../../blender-4.5.2-linux-x64/blender -y
+	BLENDER = /snap/bin/blender -y
 else
 	BLENDER = blender
 endif
@@ -13,21 +13,21 @@ endif
 EXPORT_MESHES=export-meshes.py
 
 EXPORT_MESHES=export-meshes.py
-EXPORT_WALKMESHES=export-walkmeshes.py
+# EXPORT_WALKMESHES=export-walkmeshes.py
 EXPORT_SCENE=export-scene.py
 
 DIST=../dist
 
 all : \
-	$(DIST)/phone-bank.pnct \
-	$(DIST)/phone-bank.w \
-	$(DIST)/phone-bank.scene \
+	$(DIST)/pong.pnct \
+	$(DIST)/pong.scene \
+# 	$(DIST)/pong.w \
 
-$(DIST)/phone-bank.pnct : phone-bank.blend $(EXPORT_MESHES)
-	$(BLENDER) --background --python $(EXPORT_MESHES) -- '$<':Platforms '$@'
+$(DIST)/pong.pnct : pong.blend $(EXPORT_MESHES)
+	$(BLENDER) --background --python $(EXPORT_MESHES) -- '$<':Main '$@'
 
-$(DIST)/phone-bank.scene : phone-bank.blend $(EXPORT_SCENE)
-	$(BLENDER) --background --python $(EXPORT_SCENE) -- '$<':Platforms '$@'
+$(DIST)/pong.scene : pong.blend $(EXPORT_SCENE)
+	$(BLENDER) --background --python $(EXPORT_SCENE) -- '$<':Main '$@'
 
-$(DIST)/phone-bank.w : phone-bank.blend $(EXPORT_WALKMESHES)
-	$(BLENDER) --background --python $(EXPORT_WALKMESHES) -- '$<':WalkMeshes '$@'
+# $(DIST)/pong.w : pong.blend $(EXPORT_WALKMESHES)
+# 	$(BLENDER) --background --python $(EXPORT_WALKMESHES) -- '$<':WalkMeshes '$@'

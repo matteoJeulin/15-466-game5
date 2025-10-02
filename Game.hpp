@@ -69,7 +69,7 @@ struct Game {
 
 	//player constants:
 	inline static constexpr float PlayerRadius = 0.06f;
-	inline static constexpr float PlayerSpeed = 2.0f;
+	inline static constexpr float PlayerSpeed = 10.0f;
 	inline static constexpr float PlayerAccelHalflife = 0.25f;
 	
 

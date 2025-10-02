@@ -2,6 +2,8 @@
 
 #include "Connection.hpp"
 #include "Game.hpp"
+#include "Scene.hpp"
+#include "Sound.hpp"
 
 #include <glm/glm.hpp>
 
@@ -25,10 +27,24 @@ struct PlayMode : Mode {
 	//latest game state (from server):
 	Game game;
 
+	// local copy of the game scene (so code can change it during gameplay):
+	Scene scene;
+
+	Scene::Transform *paddleRight = nullptr;
+	Scene::Transform *paddleLeft = nullptr;
+
+	Scene::Transform *ball = nullptr;
+	Scene::Transform *wallLeft = nullptr;
+	Scene::Transform *wallRight = nullptr;
+	Scene::Transform *wallTop = nullptr;
+	Scene::Transform *wallBottom = nullptr;
+
 	//last message from server:
 	std::string server_message;
 
 	//connection to server:
 	Client &client;
 
+	// camera:
+	Scene::Camera *camera = nullptr;
 };
