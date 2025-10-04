@@ -183,5 +183,9 @@ void PlayMode::draw(glm::uvec2 const &drawable_size)
 
 	scene.draw(*camera);
 
+
+	std::string score_str = std::to_string(game.players.front().score) + " - " + std::to_string(game.players.back().score);
+	tm.draw_text(score_str, drawable_size, glm::vec2(drawable_size.x / 2.0f, 36), glm::vec3(0.0f, 0.0f, 0.0f));
+
 	GL_ERRORS();
 }

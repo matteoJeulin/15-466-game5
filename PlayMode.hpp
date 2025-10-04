@@ -4,6 +4,7 @@
 #include "Game.hpp"
 #include "Scene.hpp"
 #include "Sound.hpp"
+#include "TextManager.hpp"
 
 #include <glm/glm.hpp>
 
@@ -26,6 +27,9 @@ struct PlayMode : Mode {
 
 	//latest game state (from server):
 	Game game;
+
+	//text display
+	TextManager tm = TextManager();
 
 	// local copy of the game scene (so code can change it during gameplay):
 	Scene scene;

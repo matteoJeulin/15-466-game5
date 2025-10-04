@@ -41,6 +41,8 @@ struct Player {
 	//player state (sent from server):
 	float position = 0.0f;
 	float velocity = 0.0f;
+	
+	uint32_t score = 0;
 
 	std::string name = "";
 };
@@ -49,6 +51,8 @@ struct Game {
 	std::list< Player > players; //(using list so they can have stable addresses)
 	Player *spawn_player(); //add player the end of the players list (may also, e.g., play some spawn anim)
 	void remove_player(Player *); //remove player from game (may also, e.g., play some despawn anim)
+
+	void start_round();
 
 	uint32_t next_player_number = 1; //used for naming players
 
@@ -82,6 +86,8 @@ struct Game {
 	glm::vec2 BallPosition = glm::vec2(0.0f, 0.0f);
 	glm::vec2 BallDirection = glm::vec2(0.0f, 0.0f);
 	glm::vec2 prevBallPosition = glm::vec2(0.0f, 0.0f);
+
+	//used for player creation:
 
 	//---- communication helpers ----
 

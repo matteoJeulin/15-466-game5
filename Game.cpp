@@ -76,12 +76,17 @@ bool Player::Controls::recv_controls_message(Connection *connection_)
 
 //-----------------------------------------
 
-Game::Game()
+Game::Game() { start_round(); }
+
+void Game::start_round()
 {
 	// Set the ball's direction to a random direction
 	std::random_device rd;
 	std::mt19937 mt_dir(rd());
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+
+	BallDirection.x = dist(mt_dir);
+	BallDirection.y = dist(mt_dir);
 
 	// Make sure the ball is not going straight up or down or doesn't move
 	while (BallDirection.x == 0.0f && (std::abs(BallDirection.y) == 1.0f || BallDirection.y == 0.0f))
@@ -91,7 +96,7 @@ Game::Game()
 	};
 
 	BallDirection = glm::normalize(BallDirection);
-	std::cout << "Dir: " << BallDirection.x << " " << BallDirection.y << std::endl;
+	BallPosition = glm::vec2(0.0f, 0.0f);
 }
 
 Player *Game::spawn_player()
@@ -186,25 +191,31 @@ void Game::update(float elapsed)
 	}
 	if (BallPosition.x - BallRadius < ArenaMin.x + WallThickness || BallPosition.x + BallRadius > ArenaMax.x - WallThickness)
 	{
-		BallDirection.x = -BallDirection.x;
+		if (BallDirection.x > 0)
+			players.front().score++;
+		else if (BallDirection.x < 0)
+			players.back().score++;
+
+		start_round();
 	}
 
 	// Ball collision with the paddles
 	for (auto &p : players)
 	{
 		float playerSide = std::copysignf(1.0f, BallDirection.x);
-		if (BallPosition.y - BallRadius < p.position + PlayerHeight && BallPosition.y + BallRadius > p.position - PlayerHeight)
+		if (BallPosition.y - BallRadius < p.position + PlayerHeight &&
+			BallPosition.y + BallRadius > p.position - PlayerHeight &&
+			BallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos - PlayerWidth &&
+			BallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos + PlayerWidth)
 		{
-			if (BallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos - PlayerWidth &&
-				BallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos + PlayerWidth)
-			{
-				if (prevBallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos - PlayerWidth ||
-					prevBallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos + PlayerWidth)
-					BallDirection.x = -BallDirection.x;
-				
-				if ((prevBallPosition.y - BallRadius > p.position + PlayerHeight || prevBallPosition.y + BallRadius < p.position - PlayerHeight))
-					BallDirection.y = -BallDirection.y;
-			}
+			// Bounce off the side
+			if (prevBallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos - PlayerWidth ||
+				prevBallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos + PlayerWidth)
+				BallDirection.x = -BallDirection.x;
+
+			// Bounce off the top/bottom
+			if ((prevBallPosition.y - BallRadius > p.position + PlayerHeight || prevBallPosition.y + BallRadius < p.position - PlayerHeight))
+				BallDirection.y = -BallDirection.y;
 		}
 	}
 }
@@ -225,6 +236,7 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 	auto send_player = [&](Player const &player)
 	{
 		connection.send(player.position);
+		connection.send(player.score);
 
 		// NOTE: can't just 'send(name)' because player.name is not plain-old-data type.
 		// effectively: truncates player name to 255 chars
@@ -288,6 +300,7 @@ bool Game::recv_state_message(Connection *connection_)
 		players.emplace_back();
 		Player &player = players.back();
 		read(&player.position);
+		read(&player.score);
 		uint8_t name_len;
 		read(&name_len);
 		// n.b. would probably be more efficient to directly copy from recv_buffer, but I think this is clearer:
