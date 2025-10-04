@@ -157,6 +157,8 @@ void PlayMode::update(float elapsed)
 
 	paddleLeft->position = glm::vec3(-paddlePos, game.players.front().position, paddleLeft->position.z);
 	paddleRight->position = glm::vec3(paddlePos, game.players.back().position, paddleRight->position.z);
+
+	ball->position = glm::vec3(game.BallPosition, game.BallRadius);
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size)
