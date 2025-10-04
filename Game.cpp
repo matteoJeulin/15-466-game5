@@ -191,12 +191,20 @@ void Game::update(float elapsed)
 	}
 	if (BallPosition.x - BallRadius < ArenaMin.x + WallThickness || BallPosition.x + BallRadius > ArenaMax.x - WallThickness)
 	{
-		if (BallDirection.x > 0)
-			players.front().score++;
-		else if (BallDirection.x < 0)
-			players.back().score++;
+		if (!players.empty())
+		{
+			Player &receivingPlayer = BallDirection.x < 0 ? players.front() : players.back();
+			Player &senderPlayer = BallDirection.x > 0 ? players.front() : players.back();
 
-		start_round();
+			auto extraLifePowerUp = std::find(receivingPlayer.powerUps.begin(), receivingPlayer.powerUps.end(), Player::PowerUp::ExtraLife);
+			if (extraLifePowerUp == receivingPlayer.powerUps.end())
+			{
+				senderPlayer.score++;
+				start_round();
+			}
+			else
+				receivingPlayer.powerUps.erase(extraLifePowerUp);
+		}
 	}
 
 	// Ball collision with the paddles
@@ -237,6 +245,9 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 	{
 		connection.send(player.position);
 		connection.send(player.score);
+		// connection.send(player.powerUps.size());
+		// if (player.powerUps.size() > 0)
+		// 	connection.send_buffer.insert(connection.send_buffer.end(), player.powerUps.begin(), player.powerUps.end());
 
 		// NOTE: can't just 'send(name)' because player.name is not plain-old-data type.
 		// effectively: truncates player name to 255 chars
@@ -301,6 +312,19 @@ bool Game::recv_state_message(Connection *connection_)
 		Player &player = players.back();
 		read(&player.position);
 		read(&player.score);
+		// uint16_t powerUpsLength;
+		// read(&powerUpsLength);
+		// std::cout << powerUpsLength << std::endl;
+		// player.powerUps = {};
+		// if (powerUpsLength > 0) {
+		// 	for (uint16_t n = 0; n < powerUpsLength; ++n)
+		// 	{
+		// 		Player::PowerUp p;
+		// 		read(&p);
+		// 		player.powerUps.emplace_back(p);
+		// 	}
+		// }
+
 		uint8_t name_len;
 		read(&name_len);
 		// n.b. would probably be more efficient to directly copy from recv_buffer, but I think this is clearer:

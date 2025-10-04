@@ -38,6 +38,13 @@ struct Player {
 		bool recv_controls_message(Connection *connection);
 	} controls;
 
+	enum PowerUp {
+		ExtraLife,
+		Freeze
+	};
+
+	std::vector<PowerUp> powerUps;
+
 	//player state (sent from server):
 	float position = 0.0f;
 	float velocity = 0.0f;

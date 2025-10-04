@@ -17,14 +17,14 @@
 
 GLuint pong_meshes_for_lit_color_texture_program = 0;
 Load<MeshBuffer> pong_meshes(LoadTagDefault, []() -> MeshBuffer const *
-							  {
+							 {
 	MeshBuffer const *ret = new MeshBuffer(data_path("pong.pnct"));
 	pong_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret; });
 
 Load<Scene> pong_scene(LoadTagDefault, []() -> Scene const *
-						{ return new Scene(data_path("pong.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name)
-										   {
+					   { return new Scene(data_path("pong.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name)
+										  {
 												 Mesh const &mesh = pong_meshes->lookup(mesh_name);
 
 												 scene.drawables.emplace_back(transform);
@@ -37,7 +37,7 @@ Load<Scene> pong_scene(LoadTagDefault, []() -> Scene const *
 												 drawable.pipeline.start = mesh.start;
 												 drawable.pipeline.count = mesh.count; }); });
 
-PlayMode::PlayMode(Client &client_) : scene(*pong_scene),  client(client_)
+PlayMode::PlayMode(Client &client_) : scene(*pong_scene), client(client_)
 {
 	// get pointers to leg for convenience:
 	for (auto &transform : scene.transforms)
@@ -72,6 +72,13 @@ PlayMode::PlayMode(Client &client_) : scene(*pong_scene),  client(client_)
 		throw std::runtime_error("Left wall not found.");
 	if (wallRight == nullptr)
 		throw std::runtime_error("Right wall not found.");
+
+	defaultLeftWallPos = wallLeft->position;
+	defaultRightWallPos = wallRight->position;
+
+	// Move the back walls off screen
+	wallRight->position = glm::vec3(1000.0f, 0.0f, 0.0f);
+	wallLeft->position = glm::vec3(1000.0f, 0.0f, 0.0f);
 
 	// get pointer to camera for convenience:
 	if (scene.cameras.size() != 1)
@@ -155,10 +162,27 @@ void PlayMode::update(float elapsed)
 			}
 		} }, 0.0);
 
+	// Place the paddles
 	paddleLeft->position = glm::vec3(-paddlePos, game.players.front().position, paddleLeft->position.z);
 	paddleRight->position = glm::vec3(paddlePos, game.players.back().position, paddleRight->position.z);
 
+	// Place the ball
 	ball->position = glm::vec3(game.BallPosition, game.BallRadius);
+
+	// Place the back walls if the player has an extra life
+	{
+		auto extraLifePowerUp = std::find(game.players.front().powerUps.begin(), game.players.front().powerUps.end(), Player::PowerUp::ExtraLife);
+		if (extraLifePowerUp != game.players.front().powerUps.end())
+			wallRight->position = defaultRightWallPos;
+		else
+			wallRight->position = glm::vec3(1000.0f, 0.0f, 0.0f);
+
+		extraLifePowerUp = std::find(game.players.back().powerUps.begin(), game.players.back().powerUps.end(), Player::PowerUp::ExtraLife);
+		if (extraLifePowerUp != game.players.back().powerUps.end())
+			wallLeft->position = defaultLeftWallPos;
+		else
+			wallLeft->position = glm::vec3(1000.0f, 0.0f, 0.0f);
+	}
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size)
@@ -182,7 +206,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size)
 	glDepthFunc(GL_LESS); // this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*camera);
-
 
 	std::string score_str = std::to_string(game.players.front().score) + " - " + std::to_string(game.players.back().score);
 	tm.draw_text(score_str, drawable_size, glm::vec2(drawable_size.x / 2.0f, 36), glm::vec3(0.0f, 0.0f, 0.0f));

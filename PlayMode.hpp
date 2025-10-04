@@ -43,6 +43,9 @@ struct PlayMode : Mode {
 	Scene::Transform *wallTop = nullptr;
 	Scene::Transform *wallBottom = nullptr;
 
+	glm::vec3 defaultRightWallPos;
+	glm::vec3 defaultLeftWallPos;
+
 	float paddlePos = 140;
 
 	//last message from server:
