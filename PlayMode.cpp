@@ -56,6 +56,8 @@ PlayMode::PlayMode(Client &client_) : scene(*pong_scene), client(client_)
 			wallLeft = &transform;
 		else if (transform.name == "WallRight")
 			wallRight = &transform;
+		else if (transform.name == "PowerUpPad")
+			powerUpPad = &transform;
 	}
 
 	if (paddleLeft == nullptr)
@@ -72,6 +74,8 @@ PlayMode::PlayMode(Client &client_) : scene(*pong_scene), client(client_)
 		throw std::runtime_error("Left wall not found.");
 	if (wallRight == nullptr)
 		throw std::runtime_error("Right wall not found.");
+	if (powerUpPad == nullptr)
+		throw std::runtime_error("Power up pad not found.");
 
 	defaultLeftWallPos = wallLeft->position;
 	defaultRightWallPos = wallRight->position;
@@ -169,19 +173,25 @@ void PlayMode::update(float elapsed)
 	// Place the ball
 	ball->position = glm::vec3(game.BallPosition, game.BallRadius);
 
+	// Place the power up pad
+	{
+		if (game.currPowerUp.active)
+			powerUpPad->position = glm::vec3(game.currPowerUp.Position, 1.0f);
+		else
+			powerUpPad->position = DontShow;
+	}
+
 	// Place the back walls if the player has an extra life
 	{
-		auto extraLifePowerUp = std::find(game.players.front().powerUps.begin(), game.players.front().powerUps.end(), Player::PowerUp::ExtraLife);
-		if (extraLifePowerUp != game.players.front().powerUps.end())
+		if (game.players.front().hasPowerUp(PowerUp::ExtraLife))
 			wallRight->position = defaultRightWallPos;
 		else
-			wallRight->position = glm::vec3(1000.0f, 0.0f, 0.0f);
+			wallRight->position = DontShow;
 
-		extraLifePowerUp = std::find(game.players.back().powerUps.begin(), game.players.back().powerUps.end(), Player::PowerUp::ExtraLife);
-		if (extraLifePowerUp != game.players.back().powerUps.end())
+		if (game.players.back().hasPowerUp(PowerUp::ExtraLife))
 			wallLeft->position = defaultLeftWallPos;
 		else
-			wallLeft->position = glm::vec3(1000.0f, 0.0f, 0.0f);
+			wallLeft->position = DontShow;
 	}
 }
 

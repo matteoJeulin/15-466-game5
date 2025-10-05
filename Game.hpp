@@ -24,6 +24,24 @@ struct Button {
 	bool pressed = false; //is the button pressed now
 };
 
+struct PowerUp {
+	enum Type {
+		ExtraLife, // Add an extra life to the player
+		Freeze, // Freeze enemy player
+		SpeedUp, // Speed up the ball
+		TYPE_LENGTH // Number of power up types
+	};
+
+	// Type of the power up
+	Type type;
+
+	// Boolean indicating if the power up pad is currently on the arena
+	bool active = false;
+
+	// Position of the power up pad in the arena
+	glm::vec2 Position = glm::vec2(0.0f, 0.0f);
+};
+
 //state of one player in the game:
 struct Player {
 	//player inputs (sent from client):
@@ -38,12 +56,10 @@ struct Player {
 		bool recv_controls_message(Connection *connection);
 	} controls;
 
-	enum PowerUp {
-		ExtraLife,
-		Freeze
-	};
+	// Power ups the player currently has
+	std::vector<PowerUp::Type> powerUps;
 
-	std::vector<PowerUp> powerUps;
+	bool hasPowerUp(PowerUp::Type powerUp);
 
 	//player state (sent from server):
 	float position = 0.0f;
@@ -77,7 +93,6 @@ struct Game {
 	inline static constexpr glm::vec2 ArenaMax = glm::vec2( 160.0f,  90.0f);
 	inline static constexpr float WallThickness = 3.0f;
 
-
 	//player constants:
 	inline static constexpr float PlayerSpeed = 50.0f;
 	inline static constexpr float PlayerWidth = 2.0f;
@@ -88,11 +103,25 @@ struct Game {
 	//ball constants:
 	inline static constexpr float BallRadius = 3.0f;
 	inline static constexpr float BallSpeed = 100.0f;
+	inline static constexpr float FrictionFactor = 0.1f;
+
 
 	//ball movement:
 	glm::vec2 BallPosition = glm::vec2(0.0f, 0.0f);
 	glm::vec2 BallDirection = glm::vec2(0.0f, 0.0f);
 	glm::vec2 prevBallPosition = glm::vec2(0.0f, 0.0f);
+	float currBallSpeed = BallSpeed;
+
+	//power up constants:
+	inline static constexpr float FreezeTimer = 1.0f;
+	inline static constexpr float PowerUpCooldown = 15.0f;
+	inline static constexpr glm::vec2 PowerUpPadSize = glm::vec2(10.0f, 10.0f);
+	inline static constexpr float BallSpeedUpFactor = 1.5f;
+
+	//power ups:
+	PowerUp currPowerUp;
+	float currPowerUpCooldown = 15.0f;
+	float currFreezeTimer = 1.0f;
 
 	//used for player creation:
 

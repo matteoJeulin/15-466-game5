@@ -74,6 +74,11 @@ bool Player::Controls::recv_controls_message(Connection *connection_)
 	return true;
 }
 
+bool Player::hasPowerUp(PowerUp::Type powerUp)
+{
+	return std::find(powerUps.begin(), powerUps.end(), powerUp) != powerUps.end();
+}
+
 //-----------------------------------------
 
 Game::Game() { start_round(); }
@@ -97,6 +102,8 @@ void Game::start_round()
 
 	BallDirection = glm::normalize(BallDirection);
 	BallPosition = glm::vec2(0.0f, 0.0f);
+
+	currBallSpeed = BallSpeed;
 }
 
 Player *Game::spawn_player()
@@ -129,101 +136,144 @@ void Game::remove_player(Player *player)
 
 void Game::update(float elapsed)
 {
-	// position/velocity update for players:
-	for (auto &p : players)
+	if (!players.empty())
 	{
-		float dir = 0.0f;
-		if (p.controls.down.pressed)
-			dir -= 1.0f;
-		if (p.controls.up.pressed)
-			dir += 1.0f;
-
-		if (dir == 0.0f)
+		// Power ups
 		{
-			// no inputs: just drift to a stop
-			float amt = 1.0f - std::pow(0.5f, elapsed / (PlayerAccelHalflife * 2.0f));
-			p.velocity = glm::mix(p.velocity, 0.0f, amt);
-		}
-		else
-		{
-			float amt = 1.0f - std::pow(0.5f, elapsed / PlayerAccelHalflife);
+			if (!currPowerUp.active)
+				currPowerUpCooldown -= elapsed;
 
-			// accelerate along velocity (if not fast enough):
-			float along = dir * p.velocity;
-			if (along < PlayerSpeed)
+			if (currPowerUpCooldown < 0)
 			{
-				along = glm::mix(along, PlayerSpeed, amt);
+				currPowerUp.active = true;
+				std::random_device rd;
+				std::mt19937 mt_dir(rd());
+				std::uniform_real_distribution<float> dist(-0.8f, 0.8f);
+
+				currPowerUp.Position = glm::vec2(ArenaMax.x * dist(mt_dir), ArenaMax.y * dist(mt_dir));
+
+				std::uniform_int_distribution<int> dist_pu(0, PowerUp::TYPE_LENGTH);
+
+				currPowerUp.type = static_cast<PowerUp::Type>(dist_pu(mt_dir));
+
+				currPowerUpCooldown = PowerUpCooldown;
 			}
-
-			p.velocity = dir * along;
 		}
-		p.position += p.velocity * elapsed;
 
-		// reset 'downs' since controls have been handled:
-		p.controls.up.downs = 0;
-		p.controls.down.downs = 0;
-	}
-
-	// position update for the ball:
-	{
-		prevBallPosition = BallPosition;
-		BallPosition += BallDirection * BallSpeed * elapsed;
-		// std::cout << "Pos: " << BallPosition.x << " " << BallPosition.y << std::endl;
-	}
-
-	// collision resolution:
-	for (auto &p : players)
-	{
-		if (p.position - PlayerHeight < ArenaMin.y)
+		// position/velocity update for players:
+		for (auto &p : players)
 		{
-			p.position = ArenaMin.y + PlayerHeight;
+			float dir = 0.0f;
+			if (p.controls.down.pressed)
+				dir -= 1.0f;
+			if (p.controls.up.pressed)
+				dir += 1.0f;
+
+			if (dir == 0.0f)
+			{
+				// no inputs: just drift to a stop
+				float amt = 1.0f - std::pow(0.5f, elapsed / (PlayerAccelHalflife * 2.0f));
+				p.velocity = glm::mix(p.velocity, 0.0f, amt);
+			}
+			else
+			{
+				float amt = 1.0f - std::pow(0.5f, elapsed / PlayerAccelHalflife);
+
+				// accelerate along velocity (if not fast enough):
+				float along = dir * p.velocity;
+				if (along < PlayerSpeed)
+				{
+					along = glm::mix(along, PlayerSpeed, amt);
+				}
+
+				p.velocity = dir * along;
+			}
+			p.position += p.velocity * elapsed;
+
+			// reset 'downs' since controls have been handled:
+			p.controls.up.downs = 0;
+			p.controls.down.downs = 0;
 		}
-		if (p.position + PlayerHeight > ArenaMax.y)
+
+		// position update for the ball:
 		{
-			p.position = ArenaMax.y - PlayerHeight;
+			prevBallPosition = BallPosition;
+			BallPosition += BallDirection * BallSpeed * elapsed;
 		}
-	}
 
-	// Ball collision with the walls
-	if (BallPosition.y - BallRadius < ArenaMin.y + WallThickness || BallPosition.y + BallRadius > ArenaMax.y - WallThickness)
-	{
-		BallDirection.y = -BallDirection.y;
-	}
-	if (BallPosition.x - BallRadius < ArenaMin.x + WallThickness || BallPosition.x + BallRadius > ArenaMax.x - WallThickness)
-	{
-		if (!players.empty())
+		// collision resolution:
+		for (auto &p : players)
 		{
-			Player &receivingPlayer = BallDirection.x < 0 ? players.front() : players.back();
-			Player &senderPlayer = BallDirection.x > 0 ? players.front() : players.back();
+			if (p.position - PlayerHeight < ArenaMin.y)
+			{
+				p.position = ArenaMin.y + PlayerHeight;
+			}
+			if (p.position + PlayerHeight > ArenaMax.y)
+			{
+				p.position = ArenaMax.y - PlayerHeight;
+			}
+		}
 
-			auto extraLifePowerUp = std::find(receivingPlayer.powerUps.begin(), receivingPlayer.powerUps.end(), Player::PowerUp::ExtraLife);
-			if (extraLifePowerUp == receivingPlayer.powerUps.end())
+		Player &receivingPlayer = BallDirection.x < 0 ? players.front() : players.back();
+		Player &senderPlayer = BallDirection.x > 0 ? players.front() : players.back();
+		float playerSide = std::copysignf(1.0f, BallDirection.x);
+
+		// Ball collision with the walls
+		if (BallPosition.y - BallRadius < ArenaMin.y + WallThickness || BallPosition.y + BallRadius > ArenaMax.y - WallThickness)
+		{
+			BallDirection.y = -BallDirection.y;
+		}
+		if (BallPosition.x - BallRadius < ArenaMin.x + WallThickness || BallPosition.x + BallRadius > ArenaMax.x - WallThickness)
+		{
+			// Only score if the receiving player doesn't have an extra life
+			if (!receivingPlayer.hasPowerUp(PowerUp::Type::ExtraLife))
 			{
 				senderPlayer.score++;
 				start_round();
 			}
 			else
+			{
+				auto extraLifePowerUp = std::find(receivingPlayer.powerUps.begin(), receivingPlayer.powerUps.end(), PowerUp::ExtraLife);
 				receivingPlayer.powerUps.erase(extraLifePowerUp);
+			}
 		}
-	}
 
-	// Ball collision with the paddles
-	for (auto &p : players)
-	{
-		float playerSide = std::copysignf(1.0f, BallDirection.x);
-		if (BallPosition.y - BallRadius < p.position + PlayerHeight &&
-			BallPosition.y + BallRadius > p.position - PlayerHeight &&
-			BallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos - PlayerWidth &&
-			BallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos + PlayerWidth)
+		// Ball collision with power up pad
+		if (currPowerUp.active) {
+			if (BallPosition.y - BallRadius < currPowerUp.Position.y + PowerUpPadSize.y &&
+				BallPosition.y + BallRadius > currPowerUp.Position.y - PowerUpPadSize.y &&
+				BallPosition.x + playerSide * BallRadius > currPowerUp.Position.x - PowerUpPadSize.x &&
+				BallPosition.x + playerSide * BallRadius < currPowerUp.Position.x + PowerUpPadSize.x)
+			{
+				currPowerUp.active = false;
+
+				if (currPowerUp.type == PowerUp::SpeedUp)
+					currBallSpeed *= BallSpeedUpFactor;
+				else
+					senderPlayer.powerUps.push_back(currPowerUp.type);
+			}
+		}
+
+		// Ball collision with the paddles
 		{
-			// Bounce off the side
-			if (prevBallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos - PlayerWidth ||
-				prevBallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos + PlayerWidth)
-				BallDirection.x = -BallDirection.x;
+			if (BallPosition.y - BallRadius < receivingPlayer.position + PlayerHeight &&
+				BallPosition.y + BallRadius > receivingPlayer.position - PlayerHeight &&
+				BallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos - PlayerWidth &&
+				BallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos + PlayerWidth)
+			{
+				// Bounce off the side
+				if (prevBallPosition.x + playerSide * BallRadius < playerSide * PlayerXPos - PlayerWidth ||
+					prevBallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos + PlayerWidth)
+				{
+					BallDirection.x = -BallDirection.x;
+					BallDirection.y += receivingPlayer.velocity * FrictionFactor;
+				}
 
-			// Bounce off the top/bottom
-			if ((prevBallPosition.y - BallRadius > p.position + PlayerHeight || prevBallPosition.y + BallRadius < p.position - PlayerHeight))
-				BallDirection.y = -BallDirection.y;
+				// Bounce off the top/bottom
+				if ((prevBallPosition.y - BallRadius > receivingPlayer.position + PlayerHeight ||
+					 prevBallPosition.y + BallRadius < receivingPlayer.position - PlayerHeight))
+					BallDirection.y = -BallDirection.y;
+			}
 		}
 	}
 }
@@ -245,9 +295,9 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 	{
 		connection.send(player.position);
 		connection.send(player.score);
-		// connection.send(player.powerUps.size());
-		// if (player.powerUps.size() > 0)
-		// 	connection.send_buffer.insert(connection.send_buffer.end(), player.powerUps.begin(), player.powerUps.end());
+		connection.send(player.powerUps.size());
+		if (player.powerUps.size() > 0)
+			connection.send_buffer.insert(connection.send_buffer.end(), player.powerUps.begin(), player.powerUps.end());
 
 		// NOTE: can't just 'send(name)' because player.name is not plain-old-data type.
 		// effectively: truncates player name to 255 chars
@@ -268,6 +318,8 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 	}
 
 	connection.send(BallPosition);
+	connection.send(currPowerUp.active);
+	connection.send(currPowerUp.Position);
 
 	// compute the message size and patch into the message header:
 	uint32_t size = uint32_t(connection.send_buffer.size() - mark);
@@ -312,18 +364,18 @@ bool Game::recv_state_message(Connection *connection_)
 		Player &player = players.back();
 		read(&player.position);
 		read(&player.score);
-		// uint16_t powerUpsLength;
-		// read(&powerUpsLength);
-		// std::cout << powerUpsLength << std::endl;
-		// player.powerUps = {};
-		// if (powerUpsLength > 0) {
-		// 	for (uint16_t n = 0; n < powerUpsLength; ++n)
-		// 	{
-		// 		Player::PowerUp p;
-		// 		read(&p);
-		// 		player.powerUps.emplace_back(p);
-		// 	}
-		// }
+		size_t powerUpsLength;
+		read(&powerUpsLength);
+		player.powerUps = {};
+		if (powerUpsLength > 0)
+		{
+			for (size_t n = 0; n < powerUpsLength; ++n)
+			{
+				PowerUp::Type p;
+				read(&p);
+				player.powerUps.emplace_back(p);
+			}
+		}
 
 		uint8_t name_len;
 		read(&name_len);
@@ -338,6 +390,8 @@ bool Game::recv_state_message(Connection *connection_)
 	}
 
 	read(&BallPosition);
+	read(&currPowerUp.active);
+	read(&currPowerUp.Position);
 
 	if (at != size)
 		throw std::runtime_error("Trailing data in state message.");

@@ -42,11 +42,14 @@ struct PlayMode : Mode {
 	Scene::Transform *wallRight = nullptr;
 	Scene::Transform *wallTop = nullptr;
 	Scene::Transform *wallBottom = nullptr;
+	Scene::Transform *powerUpPad = nullptr;
 
 	glm::vec3 defaultRightWallPos;
 	glm::vec3 defaultLeftWallPos;
 
 	float paddlePos = 140;
+
+	inline static constexpr glm::vec3 DontShow = glm::vec3(1000.0f, 1000.0f, 1000.0f);
 
 	//last message from server:
 	std::string server_message;
