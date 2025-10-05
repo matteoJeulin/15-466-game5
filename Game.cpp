@@ -111,8 +111,6 @@ Player *Game::spawn_player()
 	players.emplace_back();
 	Player &player = players.back();
 
-	player.name = "Player " + std::to_string(next_player_number++);
-
 	// Reset ball position when a new player arrives
 	BallPosition = glm::vec2(0.0f);
 
@@ -152,7 +150,7 @@ void Game::update(float elapsed)
 
 				currPowerUp.Position = glm::vec2(ArenaMax.x * dist(mt_dir), ArenaMax.y * dist(mt_dir));
 
-				std::uniform_int_distribution<int> dist_pu(0, PowerUp::TYPE_LENGTH);
+				std::uniform_int_distribution<int> dist_pu(0, PowerUp::TYPE_LENGTH - 1);
 
 				currPowerUp.type = static_cast<PowerUp::Type>(dist_pu(mt_dir));
 
@@ -163,42 +161,55 @@ void Game::update(float elapsed)
 		// position/velocity update for players:
 		for (auto &p : players)
 		{
-			float dir = 0.0f;
-			if (p.controls.down.pressed)
-				dir -= 1.0f;
-			if (p.controls.up.pressed)
-				dir += 1.0f;
-
-			if (dir == 0.0f)
+			if (!p.hasPowerUp(PowerUp::Freeze))
 			{
-				// no inputs: just drift to a stop
-				float amt = 1.0f - std::pow(0.5f, elapsed / (PlayerAccelHalflife * 2.0f));
-				p.velocity = glm::mix(p.velocity, 0.0f, amt);
+				float dir = 0.0f;
+				if (p.controls.down.pressed)
+					dir -= 1.0f;
+				if (p.controls.up.pressed)
+					dir += 1.0f;
+
+				if (dir == 0.0f)
+				{
+					// no inputs: just drift to a stop
+					float amt = 1.0f - std::pow(0.5f, elapsed / (PlayerAccelHalflife * 2.0f));
+					p.velocity = glm::mix(p.velocity, 0.0f, amt);
+				}
+				else
+				{
+					float amt = 1.0f - std::pow(0.5f, elapsed / PlayerAccelHalflife);
+
+					// accelerate along velocity (if not fast enough):
+					float along = dir * p.velocity;
+					if (along < PlayerSpeed)
+					{
+						along = glm::mix(along, PlayerSpeed, amt);
+					}
+
+					p.velocity = dir * along;
+				}
+				p.position += p.velocity * elapsed;
+
+				// reset 'downs' since controls have been handled:
+				p.controls.up.downs = 0;
+				p.controls.down.downs = 0;
 			}
 			else
 			{
-				float amt = 1.0f - std::pow(0.5f, elapsed / PlayerAccelHalflife);
-
-				// accelerate along velocity (if not fast enough):
-				float along = dir * p.velocity;
-				if (along < PlayerSpeed)
+				p.currFreezeTimer -= elapsed;
+				if (p.currFreezeTimer <= 0)
 				{
-					along = glm::mix(along, PlayerSpeed, amt);
+					auto freeze = std::find(p.powerUps.begin(), p.powerUps.end(), PowerUp::Freeze);
+					p.powerUps.erase(freeze);
+					p.currFreezeTimer = Player::FreezeTimer;
 				}
-
-				p.velocity = dir * along;
 			}
-			p.position += p.velocity * elapsed;
-
-			// reset 'downs' since controls have been handled:
-			p.controls.up.downs = 0;
-			p.controls.down.downs = 0;
 		}
 
 		// position update for the ball:
 		{
 			prevBallPosition = BallPosition;
-			BallPosition += BallDirection * BallSpeed * elapsed;
+			BallPosition += BallDirection * currBallSpeed * elapsed;
 		}
 
 		// collision resolution:
@@ -233,13 +244,21 @@ void Game::update(float elapsed)
 			}
 			else
 			{
+				std::cout << receivingPlayer.powerUps.size() << std::endl;
+				std::cout.flush();
+
 				auto extraLifePowerUp = std::find(receivingPlayer.powerUps.begin(), receivingPlayer.powerUps.end(), PowerUp::ExtraLife);
 				receivingPlayer.powerUps.erase(extraLifePowerUp);
+				BallDirection.x = -BallDirection.x;
+
+				std::cout << receivingPlayer.powerUps.size() << std::endl;
+				std::cout.flush();
 			}
 		}
 
 		// Ball collision with power up pad
-		if (currPowerUp.active) {
+		if (currPowerUp.active)
+		{
 			if (BallPosition.y - BallRadius < currPowerUp.Position.y + PowerUpPadSize.y &&
 				BallPosition.y + BallRadius > currPowerUp.Position.y - PowerUpPadSize.y &&
 				BallPosition.x + playerSide * BallRadius > currPowerUp.Position.x - PowerUpPadSize.x &&
@@ -249,6 +268,8 @@ void Game::update(float elapsed)
 
 				if (currPowerUp.type == PowerUp::SpeedUp)
 					currBallSpeed *= BallSpeedUpFactor;
+				else if (currPowerUp.type == PowerUp::Freeze)
+					receivingPlayer.powerUps.push_back(currPowerUp.type);
 				else
 					senderPlayer.powerUps.push_back(currPowerUp.type);
 			}
@@ -266,7 +287,7 @@ void Game::update(float elapsed)
 					prevBallPosition.x + playerSide * BallRadius > playerSide * PlayerXPos + PlayerWidth)
 				{
 					BallDirection.x = -BallDirection.x;
-					BallDirection.y += receivingPlayer.velocity * FrictionFactor;
+					// BallDirection.y += receivingPlayer.velocity * FrictionFactor;
 				}
 
 				// Bounce off the top/bottom
@@ -296,14 +317,16 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 		connection.send(player.position);
 		connection.send(player.score);
 		connection.send(player.powerUps.size());
+		std::cout.flush();
 		if (player.powerUps.size() > 0)
-			connection.send_buffer.insert(connection.send_buffer.end(), player.powerUps.begin(), player.powerUps.end());
-
-		// NOTE: can't just 'send(name)' because player.name is not plain-old-data type.
-		// effectively: truncates player name to 255 chars
-		uint8_t len = uint8_t(std::min<size_t>(255, player.name.size()));
-		connection.send(len);
-		connection.send_buffer.insert(connection.send_buffer.end(), player.name.begin(), player.name.begin() + len);
+		{
+			std::cout << "Sent: " << player.powerUps.size() << std::endl;
+			for (PowerUp::Type powerUp : player.powerUps)
+			{
+				std::cout << "Sending: " << powerUp << std::endl;
+				connection.send(static_cast<int>(powerUp));
+			}
+		}
 	};
 
 	// player count:
@@ -369,29 +392,27 @@ bool Game::recv_state_message(Connection *connection_)
 		player.powerUps = {};
 		if (powerUpsLength > 0)
 		{
+			std::cout << "Received: " << powerUpsLength << std::endl;
+			std::cout.flush();
 			for (size_t n = 0; n < powerUpsLength; ++n)
 			{
-				PowerUp::Type p;
+				int p;
 				read(&p);
-				player.powerUps.emplace_back(p);
+				std::cout << "Type: " << p << std::endl;
+				player.powerUps.emplace_back(static_cast<PowerUp::Type>(p));
 			}
-		}
-
-		uint8_t name_len;
-		read(&name_len);
-		// n.b. would probably be more efficient to directly copy from recv_buffer, but I think this is clearer:
-		player.name = "";
-		for (uint8_t n = 0; n < name_len; ++n)
-		{
-			char c;
-			read(&c);
-			player.name += c;
 		}
 	}
 
 	read(&BallPosition);
+	std::cout << "Ball " << BallPosition.x << std::endl;
+	std::cout.flush();
 	read(&currPowerUp.active);
+	std::cout << "Active " << currPowerUp.active << std::endl;
+	std::cout.flush();
 	read(&currPowerUp.Position);
+	std::cout << "PU " << currPowerUp.Position.x << std::endl;
+	std::cout.flush();
 
 	if (at != size)
 		throw std::runtime_error("Trailing data in state message.");

@@ -64,10 +64,11 @@ struct Player {
 	//player state (sent from server):
 	float position = 0.0f;
 	float velocity = 0.0f;
+
+	inline static constexpr float FreezeTimer = 1.0f;
+	float currFreezeTimer = FreezeTimer;
 	
 	uint32_t score = 0;
-
-	std::string name = "";
 };
 
 struct Game {
@@ -113,15 +114,13 @@ struct Game {
 	float currBallSpeed = BallSpeed;
 
 	//power up constants:
-	inline static constexpr float FreezeTimer = 1.0f;
-	inline static constexpr float PowerUpCooldown = 15.0f;
+	inline static constexpr float PowerUpCooldown = 1.0f;
 	inline static constexpr glm::vec2 PowerUpPadSize = glm::vec2(10.0f, 10.0f);
 	inline static constexpr float BallSpeedUpFactor = 1.5f;
 
 	//power ups:
 	PowerUp currPowerUp;
-	float currPowerUpCooldown = 15.0f;
-	float currFreezeTimer = 1.0f;
+	float currPowerUpCooldown = PowerUpCooldown;
 
 	//used for player creation:
 
