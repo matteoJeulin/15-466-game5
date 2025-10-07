@@ -37,6 +37,21 @@ Load<Scene> pong_scene(LoadTagDefault, []() -> Scene const *
 												 drawable.pipeline.start = mesh.start;
 												 drawable.pipeline.count = mesh.count; }); });
 
+Load<Sound::Sample> paddle_sample(LoadTagDefault, []() -> Sound::Sample const *
+								 { return new Sound::Sample(data_path("Bounce_Paddle.wav")); });
+
+Load<Sound::Sample> wall_sample(LoadTagDefault, []() -> Sound::Sample const *
+								{ return new Sound::Sample(data_path("Bounce_Wall.wav")); });
+
+Load<Sound::Sample> power_up_sample(LoadTagDefault, []() -> Sound::Sample const *
+							   { return new Sound::Sample(data_path("power_up.wav")); });
+
+Load<Sound::Sample> score_sample(LoadTagDefault, []() -> Sound::Sample const *
+								{ return new Sound::Sample(data_path("score.wav")); });
+
+Load<Sound::Sample> music_sample(LoadTagDefault, []() -> Sound::Sample const *
+								{ return new Sound::Sample(data_path("song.wav")); });
+
 PlayMode::PlayMode(Client &client_) : scene(*pong_scene), client(client_)
 {
 	// get pointers to leg for convenience:
@@ -88,6 +103,13 @@ PlayMode::PlayMode(Client &client_) : scene(*pong_scene), client(client_)
 	if (scene.cameras.size() != 1)
 		throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
 	camera = &scene.cameras.front();
+
+	samples.emplace_back(*paddle_sample);
+	samples.emplace_back(*wall_sample);
+	samples.emplace_back(*score_sample);
+	samples.emplace_back(*power_up_sample);
+
+	music_loop = Sound::loop(*music_sample, 0.3f);
 }
 
 PlayMode::~PlayMode()
@@ -192,6 +214,12 @@ void PlayMode::update(float elapsed)
 			wallLeft->position = defaultLeftWallPos;
 		else
 			wallLeft->position = DontShow;
+	}
+
+	for (int sound = 0; sound < Game::Sounds::SOUNDS_LENGTH; sound++) {
+		if ((game.sounds_to_play & (1 << sound)) == (1 << sound)) {
+			oneshots[sound] = Sound::play(samples[sound], 0.3f);
+		}
 	}
 }
 

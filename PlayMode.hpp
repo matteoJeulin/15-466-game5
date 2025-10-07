@@ -57,6 +57,12 @@ struct PlayMode : Mode {
 	//connection to server:
 	Client &client;
 
+	// Sounds:
+	std::shared_ptr<Sound::PlayingSample> oneshots[8];
+	std::vector<Sound::Sample> samples;
+
+	std::shared_ptr<Sound::PlayingSample> music_loop;
+
 	// camera:
 	Scene::Camera *camera = nullptr;
 };

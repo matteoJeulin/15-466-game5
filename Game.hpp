@@ -122,7 +122,16 @@ struct Game {
 	PowerUp currPowerUp;
 	float currPowerUpCooldown = PowerUpCooldown;
 
-	//used for player creation:
+	//sound trigger:
+	uint8_t sounds_to_play = 0;
+
+	enum Sounds {
+		Paddle,
+		Wall,
+		Score,
+		PowerUpSound,
+		SOUNDS_LENGTH
+	};
 
 	//---- communication helpers ----
 
@@ -134,5 +143,5 @@ struct Game {
 	//used by server:
 	//send game state.
 	//  Will move "connection_player" to the front of the front of the sent list.
-	void send_state_message(Connection *connection, Player *connection_player = nullptr) const;
+	void send_state_message(Connection *connection, Player *connection_player = nullptr);
 };

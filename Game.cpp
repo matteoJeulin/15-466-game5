@@ -232,6 +232,7 @@ void Game::update(float elapsed)
 		// Ball collision with the walls
 		if (BallPosition.y - BallRadius < ArenaMin.y + WallThickness || BallPosition.y + BallRadius > ArenaMax.y - WallThickness)
 		{
+			sounds_to_play |= 1 << Sounds::Wall;
 			BallDirection.y = -BallDirection.y;
 		}
 		if (BallPosition.x - BallRadius < ArenaMin.x + WallThickness || BallPosition.x + BallRadius > ArenaMax.x - WallThickness)
@@ -239,20 +240,17 @@ void Game::update(float elapsed)
 			// Only score if the receiving player doesn't have an extra life
 			if (!receivingPlayer.hasPowerUp(PowerUp::Type::ExtraLife))
 			{
+				sounds_to_play |= 1 << Sounds::Score;
 				senderPlayer.score++;
 				start_round();
 			}
 			else
 			{
-				std::cout << receivingPlayer.powerUps.size() << std::endl;
-				std::cout.flush();
+				sounds_to_play |= 1 << Sounds::Wall;
 
 				auto extraLifePowerUp = std::find(receivingPlayer.powerUps.begin(), receivingPlayer.powerUps.end(), PowerUp::ExtraLife);
 				receivingPlayer.powerUps.erase(extraLifePowerUp);
 				BallDirection.x = -BallDirection.x;
-
-				std::cout << receivingPlayer.powerUps.size() << std::endl;
-				std::cout.flush();
 			}
 		}
 
@@ -265,6 +263,7 @@ void Game::update(float elapsed)
 				BallPosition.x + playerSide * BallRadius < currPowerUp.Position.x + PowerUpPadSize.x)
 			{
 				currPowerUp.active = false;
+				sounds_to_play |= 1 << Sounds::PowerUpSound;
 
 				if (currPowerUp.type == PowerUp::SpeedUp)
 					currBallSpeed *= BallSpeedUpFactor;
@@ -288,18 +287,22 @@ void Game::update(float elapsed)
 				{
 					BallDirection.x = -BallDirection.x;
 					// BallDirection.y += receivingPlayer.velocity * FrictionFactor;
+					sounds_to_play |= 1 << Sounds::Paddle;
 				}
 
 				// Bounce off the top/bottom
 				if ((prevBallPosition.y - BallRadius > receivingPlayer.position + PlayerHeight ||
 					 prevBallPosition.y + BallRadius < receivingPlayer.position - PlayerHeight))
+				{
 					BallDirection.y = -BallDirection.y;
+					sounds_to_play |= 1 << Sounds::Paddle;
+				}
 			}
 		}
 	}
 }
 
-void Game::send_state_message(Connection *connection_, Player *connection_player) const
+void Game::send_state_message(Connection *connection_, Player *connection_player)
 {
 	assert(connection_);
 	auto &connection = *connection_;
@@ -343,6 +346,10 @@ void Game::send_state_message(Connection *connection_, Player *connection_player
 	connection.send(BallPosition);
 	connection.send(currPowerUp.active);
 	connection.send(currPowerUp.Position);
+	connection.send(sounds_to_play);
+
+	// Reset sounds
+	sounds_to_play = 0;
 
 	// compute the message size and patch into the message header:
 	uint32_t size = uint32_t(connection.send_buffer.size() - mark);
@@ -405,14 +412,9 @@ bool Game::recv_state_message(Connection *connection_)
 	}
 
 	read(&BallPosition);
-	std::cout << "Ball " << BallPosition.x << std::endl;
-	std::cout.flush();
 	read(&currPowerUp.active);
-	std::cout << "Active " << currPowerUp.active << std::endl;
-	std::cout.flush();
 	read(&currPowerUp.Position);
-	std::cout << "PU " << currPowerUp.Position.x << std::endl;
-	std::cout.flush();
+	read(&sounds_to_play);
 
 	if (at != size)
 		throw std::runtime_error("Trailing data in state message.");
