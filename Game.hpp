@@ -95,7 +95,7 @@ struct Game {
 	inline static constexpr float WallThickness = 3.0f;
 
 	//player constants:
-	inline static constexpr float PlayerSpeed = 50.0f;
+	inline static constexpr float PlayerSpeed = 75.0f;
 	inline static constexpr float PlayerWidth = 2.0f;
 	inline static constexpr float PlayerHeight = 10.0f;
 	inline static constexpr float PlayerXPos = 140.0f;
@@ -114,7 +114,7 @@ struct Game {
 	float currBallSpeed = BallSpeed;
 
 	//power up constants:
-	inline static constexpr float PowerUpCooldown = 1.0f;
+	inline static constexpr float PowerUpCooldown = 5.0f;
 	inline static constexpr glm::vec2 PowerUpPadSize = glm::vec2(10.0f, 10.0f);
 	inline static constexpr float BallSpeedUpFactor = 1.5f;
 
